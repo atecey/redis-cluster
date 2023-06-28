@@ -1,0 +1,12 @@
+version: '2'
+services:
+  redis-cluster:
+    image: redis-cluster-test
+    hostname: server
+    ports:
+      - '7000-7050:7000-7050'
+      - '5000-5010:5000-5010'
+    environment:
+      INITIAL_PORT: 7000
+      MASTERS: 3
+      SLAVES_PER_MASTER: 1
