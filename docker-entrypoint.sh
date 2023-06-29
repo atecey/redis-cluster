@@ -9,9 +9,15 @@ waitForRedis() {
     done
 }
 
-sysctl vm.overcommit_memory=1
-
 if [ "$1" = 'redis-cluster' ]; then
+
+    IP="${2:-$IP}"
+
+    if [ -z "$IP" ]; then # If IP is unset then discover it
+        IP=$(/sbin/ip -o -4 addr list eth0 | awk '{print $4}' | cut -d/ -f1)
+    fi
+
+    echo " -- IP: '$IP'"
 
     if [ -z "$INITIAL_PORT" ]; then # Default to port 7000
       INITIAL_PORT=7000
@@ -50,7 +56,7 @@ if [ "$1" = 'redis-cluster' ]; then
 
       if [ "$port" -lt "$first_standalone" ]; then
         PORT=${port} BIND_ADDRESS=${BIND_ADDRESS} envsubst < /redis-conf/redis-cluster.tmpl > /redis-conf/${port}/redis.conf
-        nodes="$nodes localhost:$port"
+        nodes="$nodes $IP:$port"
         redis-server /redis-conf/${port}/redis.conf --port "$port" &
         waitForRedis "localhost" "$port"
       else
@@ -61,6 +67,7 @@ if [ "$1" = 'redis-cluster' ]; then
     done
 
     echo "creating the cluster"
+    echo redis-cli --cluster create $nodes --cluster-replicas "$SLAVES_PER_MASTER" 
     yes "yes" | redis-cli --cluster create $nodes --cluster-replicas "$SLAVES_PER_MASTER" 
 
     tail -f /dev/null
